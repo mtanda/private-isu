@@ -118,8 +118,25 @@ services:
     networks:
       - my_network
 
+  gcx:
+    build:
+      context: gcx/
+      dockerfile: Dockerfile
+    environment:
+      GRAFANA_SERVER: http://otel-lgtm:3000
+      GRAFANA_USER: admin
+      GRAFANA_PASSWORD: admin
+      GRAFANA_ORG_ID: 1
+    volumes:
+      - gcx-config:/root/.config/gcx
+    depends_on:
+      - otel-lgtm
+    networks:
+      - my_network
+
 volumes:
   mysql:
+  gcx-config:
 
 networks:
   my_network:
