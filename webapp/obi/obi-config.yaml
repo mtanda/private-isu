@@ -5,6 +5,11 @@ otel_traces_export:
 discovery:
   instrument:
     - open_ports: 8080
+ebpf:
+  log_enricher:
+    services:
+      - service:
+          - open_ports: 8080
 attributes:
   select:
     traces:
