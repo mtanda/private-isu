@@ -56,6 +56,11 @@ discovery.relabel "containers" {
     target_label  = "service_name"
   }
   rule {
+    source_labels = ["__meta_docker_container_label_otel_service_name"]
+    regex         = "(.+)"
+    target_label  = "service_name"
+  }
+  rule {
     source_labels = ["__meta_docker_container_name"]
     regex         = "^/(.*)$"
     target_label  = "container"
@@ -65,7 +70,22 @@ discovery.relabel "containers" {
 loki.source.docker "containers" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.containers.receiver]
+}
+
+loki.process "containers" {
   forward_to = [loki.write.lgtm.receiver]
+
+  stage.regex {
+    expression = "trace_id=(?P<trace_id>[0-9a-f]{32}) span_id=(?P<span_id>[0-9a-f]{16})"
+  }
+
+  stage.structured_metadata {
+    values = {
+      trace_id = "",
+      span_id  = "",
+    }
+  }
 }
 
 loki.write "lgtm" {

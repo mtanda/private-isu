@@ -1,4 +1,7 @@
 name: private-isu
+
+x-app-otel-service-name: &app_otel_service_name private-isu-ruby
+
 services:
   nginx:
     image: nginx:1.30
@@ -21,6 +24,8 @@ services:
       - mysql
       - memcached
       - alloy
+    labels:
+      otel_service_name: *app_otel_service_name
     environment:
       ISUCONP_DB_HOST: mysql
       ISUCONP_DB_PORT: 3306
@@ -28,7 +33,7 @@ services:
       ISUCONP_DB_PASSWORD: root
       ISUCONP_DB_NAME: isuconp
       ISUCONP_MEMCACHED_ADDRESS: memcached:11211
-      OTEL_SERVICE_NAME: private-isu-ruby
+      OTEL_SERVICE_NAME: *app_otel_service_name
     networks:
       - my_network
     volumes:
@@ -103,6 +108,7 @@ services:
     volumes:
       - ./grafana/dashboards-provisioning.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
       - ./grafana/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards/custom:ro
+      - ./grafana/datasources-provisioning.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/grafana-datasources.yaml:ro
     networks:
       - my_network
 
