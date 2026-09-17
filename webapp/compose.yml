@@ -28,6 +28,7 @@ services:
       ISUCONP_DB_PASSWORD: root
       ISUCONP_DB_NAME: isuconp
       ISUCONP_MEMCACHED_ADDRESS: memcached:11211
+      OTEL_SERVICE_NAME: private-isu-ruby
     networks:
       - my_network
     volumes:
@@ -99,6 +100,21 @@ services:
     image: grafana/otel-lgtm:latest
     ports:
       - "127.0.0.1:3000:3000"
+    networks:
+      - my_network
+
+  obi:
+    image: otel/ebpf-instrument:v0.13.0
+    pid: host
+    privileged: true
+    volumes:
+      - ./obi/obi-config.yaml:/config/obi-config.yaml:ro
+      - /sys/fs/bpf:/sys/fs/bpf
+    command:
+      - --config=/config/obi-config.yaml
+    depends_on:
+      - app
+      - alloy
     networks:
       - my_network
 
