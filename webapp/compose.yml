@@ -118,6 +118,20 @@ services:
     networks:
       - my_network
 
+  k6:
+    image: grafana/k6:2.2.0
+    volumes:
+      - ./k6:/scripts:ro
+      - ../benchmarker/userdata:/userdata:ro
+    environment:
+      TARGET: http://nginx
+      K6_OUT: experimental-prometheus-rw
+      K6_PROMETHEUS_RW_SERVER_URL: http://otel-lgtm:9090/api/v1/write
+    depends_on:
+      - nginx
+    networks:
+      - my_network
+
   gcx:
     build:
       context: gcx/
