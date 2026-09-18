@@ -1,9 +1,13 @@
 .PHONY: init
-init: webapp/sql/dump.sql.bz2 benchmarker/userdata/img
+init: webapp/sql/dump.sql.bz2 benchmarker/userdata/img webapp/grafana/dashboards/k6-prometheus.json
 
 webapp/sql/dump.sql.bz2:
 	cd webapp/sql && \
 	curl -L -O https://github.com/catatsuy/private-isu/releases/download/img/dump.sql.bz2
+
+webapp/grafana/dashboards/k6-prometheus.json:
+	mkdir -p webapp/grafana/dashboards && \
+	curl -L -o $@ https://grafana.com/api/dashboards/19665/revisions/latest/download
 
 benchmarker/userdata/img.zip:
 	cd benchmarker/userdata && \

@@ -100,6 +100,9 @@ services:
     image: grafana/otel-lgtm:latest
     ports:
       - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana/dashboards-provisioning.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
+      - ./grafana/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards/custom:ro
     networks:
       - my_network
 
