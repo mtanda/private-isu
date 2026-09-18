@@ -20,6 +20,7 @@ services:
     depends_on:
       - mysql
       - memcached
+      - alloy
     environment:
       ISUCONP_DB_HOST: mysql
       ISUCONP_DB_PORT: 3306
@@ -59,6 +60,45 @@ services:
 
   memcached:
     image: memcached:1.6
+    networks:
+      - my_network
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter
+    volumes:
+      - ./mysqld_exporter/.my.cnf:/.my.cnf:ro
+    command:
+      - "--config.my-cnf=/.my.cnf"
+      - "--mysqld.address=mysql:3306"
+    depends_on:
+      - mysql
+    networks:
+      - my_network
+
+  alloy:
+    image: grafana/alloy:latest
+    pid: host
+    privileged: true
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:12345:12345"
+    depends_on:
+      - otel-lgtm
+      - mysqld-exporter
+    networks:
+      - my_network
+
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "127.0.0.1:3000:3000"
     networks:
       - my_network
 
