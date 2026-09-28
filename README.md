@@ -203,6 +203,61 @@ docker run --network host --add-host host.docker.internal:host-gateway -i privat
        valid_lft forever preferred_lft forever
 ```
 
+##### Observability（Grafana LGTM スタック / OBI / k6 / gcx）
+
+`docker compose up`では、参考実装用のコンテナに加えて、Observability検証用のコンテナも起動します。
+
+* `otel-lgtm`: `grafana/otel-lgtm`イメージによるオールインワンのGrafana LGTMスタック（Grafana + Prometheus + Loki + Tempo + Pyroscope）。GrafanaのUIは http://localhost:3000 （ユーザー名/パスワードともに`admin`）から確認できます。データソースとダッシュボードは自動プロビジョニングされます。
+* `alloy`: Grafana Alloy。`obi`から受け取ったOTLPメトリクス・トレースを`otel-lgtm`へ転送しつつ、`mysqld-exporter`のスクレイプ、Dockerコンテナログの収集（ログから`trace_id`/`span_id`を抽出してLokiの構造化メタデータへ付与）、eBPFによる継続的プロファイリング（Pyroscope）も担います。
+* `obi`: eBPFによる自動計装（OpenTelemetry eBPF Instrumentation）。`app`コンテナの8080番ポートを監視し、アプリケーションのコード変更なしでOTLPメトリクス・トレースを生成します。
+* `k6`: 負荷試験ツール。`webapp/k6/script.js`を実行してnginx（`http://nginx`）にトラフィックを発生させ、結果をPrometheus Remote Writeで`otel-lgtm`のPrometheusに書き込みます。
+* `gcx`: Grafana公式CLI。`otel-lgtm`のGrafanaに対してBasic認証（`admin`/`admin`、org ID 1）で接続済みの状態で用意されています。
+
+###### 負荷試験の実行
+
+`k6`コンテナは`compose.yml`に`command`を指定していないため、`docker compose up`だけでは自動実行されません。明示的に以下を実行してください。
+
+```sh
+cd webapp
+docker compose run --rm k6 run /scripts/script.js
+# VU数や実行時間を変える場合
+docker compose run --rm -e VUS=10 -e DURATION=1m k6 run /scripts/script.js
+```
+
+より手軽にトラフィックを流したい場合は、Dockerを使わないcurlベースのスクリプトも用意されています（引数は`対象URL イテレーション数 ユーザー名 画像ディレクトリ`の順、すべて省略可）。
+
+```sh
+cd webapp
+./generate-traffic.sh http://localhost 20 mary ../benchmarker/userdata/img
+```
+
+###### Grafanaでの確認
+
+1. ブラウザで http://localhost:3000 を開きます（`admin`/`admin`でログイン）。
+2. 以下が自動プロビジョニングされています。
+   * データソース: Prometheus（uid: `prometheus`）/ Loki（`loki`）/ Tempo（`tempo`）/ Pyroscope（`pyroscope`）
+   * ダッシュボード: `k6-prometheus`（k6の負荷試験結果を可視化）
+3. Tempoのトレース検索からspan単位でLokiのログへ相関ジャンプできます（`trace_id`/`span_id`ベース）。
+4. eBPFによる継続的プロファイリングの結果は、Pyroscopeデータソースから確認できます。
+
+###### gcxの使い方
+
+`gcx`サービスを使うと、コンテナ経由でターミナルから`otel-lgtm`のGrafanaにクエリを実行できます。
+
+```sh
+cd webapp
+# 接続確認
+docker compose run --rm gcx config check
+
+# 稼働確認（scrapeターゲットのup値）
+docker compose run --rm gcx metrics query -d prometheus 'up'
+
+# 利用可能なメトリクス名の一覧
+docker compose run --rm gcx metrics list-names -d prometheus
+```
+
+その他のサブコマンド（`logs`、`traces`、`profiles`、`dashboards`など）は`docker compose run --rm gcx --help`で確認できます。
+
 ### cloud-init を利用して環境を構築する
 
 matsuu氏が提供する[`cloud-init`に対応したISUCON過去問題環境構築用のcloud-config集](https://github.com/matsuu/cloud-init-isucon/)を利用して、競技者用およびベンチマーカーインスタンスを構築できます。
